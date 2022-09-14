@@ -12,7 +12,6 @@
 namespace levenshteinsgate {
 
 
-
 inline int Log(unsigned int v) // 32-bit word to find the log of
 {
     static const signed char LogTable256[256] =
@@ -281,9 +280,9 @@ private:
 
     Tnode* wordList = nullptr;
 
-    unsigned int minLength;// = INT_MAX;
+    //unsigned int minLength;// = INT_MAX;
 
-    unsigned int wordDim;
+    //unsigned int wordDim;
 
     FixedAlloc s_alloc{ sizeof(Tnode), 64 };
 
@@ -502,13 +501,19 @@ public:
             unsigned int length(1);
             wordList = insert(wordList, s, ch, length, s_alloc);
 
-            wordDim = wordList->maxLength + 1;
-            minLength = wordList->minLength;
+            //wordDim = wordList->maxLength + 1;
+            //minLength = wordList->minLength;
         }
     }
 
     int GetDistance(const std::string& s) const
     {
+        if (!wordList)
+            return s.length();
+
+        if (s.empty())
+            return wordList->minLength;
+
         if (find0(wordList, s.c_str()))
             return 0;
 
@@ -516,6 +521,7 @@ public:
 
         unsigned int sbuf[FAST_BUFFER_SIZE];
 
+        const unsigned int wordDim = wordList->maxLength + 1;
         const size_t bufSize = wordDim * (s.size() + 1);
         unsigned int* d = (bufSize > FAST_BUFFER_SIZE)? new unsigned int[bufSize] : sbuf;
 
@@ -533,7 +539,7 @@ public:
                 return result;
             }
 
-        int result = std::max(minLength, (unsigned int) s.size());
+        int result = std::max((unsigned int) wordList->minLength, (unsigned int) s.size());
         GetDistance(wordList, &d[0], s, 1, result);
 
         if (d != sbuf)
@@ -541,8 +547,6 @@ public:
         return result;
     }
 };
-
-
 
 
 }  // namespace levenshteinsgate
