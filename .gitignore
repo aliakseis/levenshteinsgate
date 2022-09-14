@@ -15,3 +15,12 @@ build/
 dist/
 *.egg-info/
 
+# User-specific files
+*.suo
+*.user
+*.sln.docstates
+
+[Dd]ebug/
+[Rr]elease/
+
+.vs/

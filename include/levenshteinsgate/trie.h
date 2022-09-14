@@ -1,5 +1,8 @@
 #pragma once
 
+#include <algorithm>
+#include <cassert>
+#include <string>
 
 #ifdef _MSC_VER
 #define __inline__ __forceinline
@@ -8,30 +11,26 @@
 
 namespace levenshteinsgate {
 
-static const signed char LogTable256[256] =
-{
-#define LT(n) n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n
-    -1, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3,
-    LT(4), LT(5), LT(5), LT(6), LT(6), LT(6), LT(6),
-    LT(7), LT(7), LT(7), LT(7), LT(7), LT(7), LT(7), LT(7)
-};
 
 
 inline int Log(unsigned int v) // 32-bit word to find the log of
 {
-    int r;     // r will be lg(v)
+    static const signed char LogTable256[256] =
+    {
+    #define LT(n) n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n
+        - 1, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3,
+        LT(4), LT(5), LT(5), LT(6), LT(6), LT(6), LT(6),
+        LT(7), LT(7), LT(7), LT(7), LT(7), LT(7), LT(7), LT(7)
+    };
+
     unsigned int t, tt; // temporaries
 
     if (tt = v >> 16)
     {
-      r = (t = tt >> 8) ? 24 + LogTable256[t] : 16 + LogTable256[tt];
+      return (t = tt >> 8) ? 24 + LogTable256[t] : 16 + LogTable256[tt];
     }
-    else
-    {
-      r = (t = v >> 8) ? 8 + LogTable256[t] : LogTable256[v];
-    }
-
-    return r;
+      
+    return (t = v >> 8) ? 8 + LogTable256[t] : LogTable256[v];
 }
 
 
@@ -168,54 +167,56 @@ void FixedAlloc::Free(void* p)
 
 struct Tnode
 {
-   char splitchar;
-   /*bool*/ char terminating;
-   unsigned char maxLength, minLength;
+    char splitchar;
+    /*bool*/ char terminating;
+    unsigned char maxLength, minLength;
 
-   Tnode *eqkid, *hikid;
+    Tnode *eqkid, *hikid;
 
-   Tnode(char ch)
-       : splitchar(ch)
-       , terminating(false)
-       , maxLength(0)
-       , minLength(255)
-       , eqkid(0), hikid(0)
-   {
-   }
+    Tnode(char ch)
+        : splitchar(ch)
+        , terminating(false)
+        , maxLength(0)
+        , minLength(255)
+        , eqkid(0), hikid(0)
+    {
+    }
 
-    void* operator new(size_t size)
+    void* operator new(size_t size, FixedAlloc& s_alloc)
     {
         assert(size == s_alloc.GetAllocSize());
         return s_alloc.Alloc();
     }
     void* operator new(size_t, void* p) { return p; }
-    void operator delete(void* p) { s_alloc.Free(p); }
 
-protected:
-    static FixedAlloc s_alloc;
-} ;
+    void operator delete(void* p, FixedAlloc& s_alloc) { s_alloc.Free(p); }
+
+    //protected:
+    //    static FixedAlloc s_alloc;
+};
 
 
-FixedAlloc Tnode::s_alloc(sizeof(Tnode), 64);
+//FixedAlloc Tnode::s_alloc(sizeof(Tnode), 64);
 
+/*
 inline char ToLowerCase(char ch) { return ch | 0x20; }
+*/
 
-
-Tnode* insert_new(FILE *stream, int ch, unsigned int& length)
+Tnode* insert_new(const char *stream, int ch, unsigned int& length, FixedAlloc& s_alloc)
 {
     assert(ch & ~31);
 
-    ch = ToLowerCase(ch);
+    //ch = ToLowerCase(ch);
 
-    Tnode *p = new Tnode(ch);
+    Tnode *p = new(s_alloc) Tnode(ch);
 
-    ch = _fgetc_nolock( stream );
-    if (0 == (ch & ~31) || EOF == ch)
+    ch = *stream++;//_fgetc_nolock( stream );
+    if (0 == ch)// & ~31) || EOF == ch)
         p->terminating = true;
     else
     {
         ++length;
-        p->eqkid = insert_new(stream, ch, length);
+        p->eqkid = insert_new(stream, ch, length, s_alloc);
     }
 
     p->maxLength = length;
@@ -224,30 +225,29 @@ Tnode* insert_new(FILE *stream, int ch, unsigned int& length)
     return p;
 }
 
-
-Tnode* insert(Tnode *p, FILE *stream, int ch, unsigned int& length)
+Tnode* insert(Tnode *p, const char *stream, int ch, unsigned int& length, FixedAlloc& s_alloc)
 {
     assert(ch & ~31);
 
-    ch = ToLowerCase(ch);
+    //ch = ToLowerCase(ch);
 
     if (p == 0) {
-        p = new Tnode(ch);
+        p = new(s_alloc) Tnode(ch);
     }
 
     assert(ch >= p->splitchar);
     if (ch == p->splitchar) {
-        ch = _fgetc_nolock( stream );
-        if (0 == (ch & ~31) || EOF == ch)
+        ch = *stream++;// _fgetc_nolock(stream);
+        if (0 == ch)// & ~31) || EOF == ch)
             p->terminating = true;
         else
         {
             ++length;
-            p->eqkid = insert(p->eqkid, stream, ch, length);
+            p->eqkid = insert(p->eqkid, stream, ch, length, s_alloc);
         }
     } else
     {
-        Tnode* temp = insert_new(stream, ch, length);
+        Tnode* temp = insert_new(stream, ch, length, s_alloc);
         assert(0 == temp->hikid);
         temp->hikid = p;
         temp->minLength = p->minLength;
@@ -266,8 +266,11 @@ Tnode* insert(Tnode *p, FILE *stream, int ch, unsigned int& length)
     return p;
 }
 
-
+/*
 const char seps[] = "\r\n";
+*/
+
+
 
 const unsigned int ZERO_DISTANCE = 0xFFFFFFFF;//(unsigned int)-1;
 
@@ -276,15 +279,17 @@ class Breathalyzer
 private:
     enum { DISTANCE_THRESHOLD = 3 };
 
-    Tnode* wordList;
+    Tnode* wordList = nullptr;
 
     unsigned int minLength;// = INT_MAX;
 
     unsigned int wordDim;
 
+    FixedAlloc s_alloc{ sizeof(Tnode), 64 };
+
     __inline__
-    bool DoSearch(const Tnode* p, unsigned int* d, const string& s,
-                  const int offset, const unsigned int maxDistance, unsigned int& distance)
+    bool DoSearch(const Tnode* p, unsigned int* d, const std::string& s,
+                  const int offset, const unsigned int maxDistance, unsigned int& distance) const
     {
         int threshold = int(s.size());
         if (p->eqkid != 0)
@@ -366,7 +371,7 @@ ok_loop:
     }
 
 
-    bool GetDistance(const Tnode* p, unsigned int* d, const string& s, int offset, int& maxDistance)
+    bool GetDistance(const Tnode* p, unsigned int* d, const std::string& s, int offset, int& maxDistance) const
     {
         for (; p != 0; p = p->eqkid, ++offset, d += s.size() + 1)
         {
@@ -402,7 +407,7 @@ ok_loop:
         return false;
     }
 
-    bool find0(const Tnode* p, const char* s)
+    bool find0(const Tnode* p, const char* s) const
     {
         for (; p != 0; p = p->eqkid)
         {
@@ -429,7 +434,7 @@ ok_loop:
         return false;
     }
 
-    bool find(const Tnode* p, unsigned int* d, const string& s, int offset, const int maxDistance)
+    bool find(const Tnode* p, unsigned int* d, const std::string& s, int offset, const int maxDistance) const
     {
         for (; p != 0; p = p->eqkid, ++offset, d += s.size() + 1)
         {
@@ -462,10 +467,8 @@ ok_loop:
     }
 
 public:
-    Breathalyzer() : wordList(0)
-    {
-    }
 
+    /*
     void ReadWordList()
     {
         FILE *stream = fopen("/var/tmp/twl06.txt", "r");
@@ -490,8 +493,21 @@ public:
         wordDim = wordList->maxLength + 1;
         minLength = wordList->minLength;
     }
+    */
 
-    int GetDistance(const string& s)
+    void Insert(const char* s)
+    {
+        if (auto ch = *s++)
+        {
+            unsigned int length(1);
+            wordList = insert(wordList, s, ch, length, s_alloc);
+
+            wordDim = wordList->maxLength + 1;
+            minLength = wordList->minLength;
+        }
+    }
+
+    int GetDistance(const std::string& s) const
     {
         if (find0(wordList, s.c_str()))
             return 0;
@@ -517,7 +533,7 @@ public:
                 return result;
             }
 
-        int result = max(minLength, (unsigned int) s.size());
+        int result = std::max(minLength, (unsigned int) s.size());
         GetDistance(wordList, &d[0], s, 1, result);
 
         if (d != sbuf)
