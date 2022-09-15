@@ -189,28 +189,17 @@ struct Tnode
     void* operator new(size_t, void* p) { return p; }
 
     void operator delete(void* p, FixedAlloc& s_alloc) { s_alloc.Free(p); }
-
-    //protected:
-    //    static FixedAlloc s_alloc;
 };
 
-
-//FixedAlloc Tnode::s_alloc(sizeof(Tnode), 64);
-
-/*
-inline char ToLowerCase(char ch) { return ch | 0x20; }
-*/
 
 Tnode* insert_new(const char *stream, int ch, unsigned int& length, FixedAlloc& s_alloc)
 {
     assert(ch & ~31);
 
-    //ch = ToLowerCase(ch);
-
     Tnode *p = new(s_alloc) Tnode(ch);
 
-    ch = *stream++;//_fgetc_nolock( stream );
-    if (0 == ch)// & ~31) || EOF == ch)
+    ch = *stream++;
+    if (0 == ch)
         p->terminating = true;
     else
     {
@@ -228,16 +217,14 @@ Tnode* insert(Tnode *p, const char *stream, int ch, unsigned int& length, FixedA
 {
     assert(ch & ~31);
 
-    //ch = ToLowerCase(ch);
-
     if (p == 0) {
         p = new(s_alloc) Tnode(ch);
     }
 
     assert(ch >= p->splitchar);
     if (ch == p->splitchar) {
-        ch = *stream++;// _fgetc_nolock(stream);
-        if (0 == ch)// & ~31) || EOF == ch)
+        ch = *stream++;
+        if (0 == ch)
             p->terminating = true;
         else
         {
@@ -265,11 +252,6 @@ Tnode* insert(Tnode *p, const char *stream, int ch, unsigned int& length, FixedA
     return p;
 }
 
-/*
-const char seps[] = "\r\n";
-*/
-
-
 
 const unsigned int ZERO_DISTANCE = 0xFFFFFFFF;//(unsigned int)-1;
 
@@ -279,10 +261,6 @@ private:
     enum { DISTANCE_THRESHOLD = 3 };
 
     Tnode* wordList = nullptr;
-
-    //unsigned int minLength;// = INT_MAX;
-
-    //unsigned int wordDim;
 
     FixedAlloc s_alloc{ sizeof(Tnode), 64 };
 
@@ -466,43 +444,12 @@ ok_loop:
     }
 
 public:
-
-    /*
-    void ReadWordList()
-    {
-        FILE *stream = fopen("/var/tmp/twl06.txt", "r");
-
-        for (;;)
-        {
-            int ch;
-            do
-            {
-                ch = _fgetc_nolock( stream );
-            }
-            while (0 == (ch & ~31));
-            if (EOF == ch)
-               break;
-
-            unsigned int length(1);
-            wordList = insert(wordList, stream, ch, length);
-        }
-
-        fclose(stream);
-
-        wordDim = wordList->maxLength + 1;
-        minLength = wordList->minLength;
-    }
-    */
-
     void Insert(const char* s)
     {
         if (auto ch = *s++)
         {
             unsigned int length(1);
             wordList = insert(wordList, s, ch, length, s_alloc);
-
-            //wordDim = wordList->maxLength + 1;
-            //minLength = wordList->minLength;
         }
     }
 
