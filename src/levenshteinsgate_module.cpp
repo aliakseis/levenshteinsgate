@@ -1,6 +1,7 @@
 #include <levenshteinsgate/trie.h>
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include <cstdint>
 #include <stdexcept>
@@ -20,6 +21,11 @@ public:
     int min_distance(const std::string& word) const {
         return trie_.GetDistance(word);
     }
+
+    std::tuple<int, std::vector<std::string>> min_distance_words(const std::string& word) const {
+        return trie_.GetDistanceWords(word);
+    }
+
 
 private:
     levenshteinsgate::Breathalyzer trie_;
@@ -47,5 +53,6 @@ PYBIND11_MODULE(levenshteinsgate, m) {
         .def(py::init<>())
         .def(py::init<py::iterable>(), py::arg("words"))
         .def("insert", &Trie::insert, py::arg("word"))
-        .def("min_distance", &Trie::min_distance, py::arg("word"));
+        .def("min_distance", &Trie::min_distance, py::arg("word"))
+        .def("min_distance_words", &Trie::min_distance_words, py::arg("word"));
 }

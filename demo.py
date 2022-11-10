@@ -17,3 +17,15 @@ for v in david_22719:
 print(sum)
 
 print("%s seconds" % (time.time() - start_time))
+
+start_time = time.time()
+
+sum = 0
+for v in david_22719:
+    sum += trie.min_distance_words(v)[0]
+
+print(sum)
+
+print("%s seconds" % (time.time() - start_time))
+
+print(trie.min_distance_words('ertyuiopqzwaig'))

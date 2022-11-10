@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <cassert>
 #include <string>
+#include <tuple>
+#include <vector>
+#include <utility>
 
 #ifdef _MSC_VER
 #define __inline__ __forceinline
@@ -260,6 +263,11 @@ class Breathalyzer
 private:
     enum { DISTANCE_THRESHOLD = 3 };
 
+    struct SearchData {
+        std::vector<std::string> words;
+        char buffer[512];
+    };
+
     Tnode* wordList = nullptr;
 
     FixedAlloc s_alloc{ sizeof(Tnode), 64 };
@@ -348,7 +356,8 @@ ok_loop:
     }
 
 
-    bool GetDistance(const Tnode* p, unsigned int* d, const std::string& s, int offset, int& maxDistance) const
+    bool GetDistance(const Tnode* p, unsigned int* d, const std::string& s,
+        int offset, int& maxDistance, SearchData* searchData) const
     {
         for (; p != 0; p = p->eqkid, ++offset, d += s.size() + 1)
         {
@@ -358,7 +367,7 @@ ok_loop:
             if (p->minLength - int(s.length()) > maxDistance)
                 return false;
 
-            if (GetDistance(p->hikid, d, s, offset, maxDistance))
+            if (GetDistance(p->hikid, d, s, offset, maxDistance, searchData))
                 return true;
 
             if (0 == p->eqkid && !p->terminating)
@@ -371,14 +380,23 @@ ok_loop:
             if (!DoSearch(p, d, s, offset, expMaxDistance, distance))
                 return false;
 
+            if (searchData)
+                searchData->buffer[offset - 1] = p->splitchar;
+
             if (p->terminating)
             {
                 if (distance > expMaxDistance)
                 {
                     maxDistance = 31 - Log(distance);
-                    if (maxDistance <= DISTANCE_THRESHOLD)
+                    if (searchData) {
+                        searchData->words.clear();
+                        searchData->words.emplace_back(searchData->buffer, searchData->buffer + offset);
+                    }
+                    else if (maxDistance <= DISTANCE_THRESHOLD)
                         return true;
                 }
+                else if (searchData && distance == expMaxDistance)
+                    searchData->words.emplace_back(searchData->buffer, searchData->buffer + offset);
             }
         }
         return false;
@@ -411,7 +429,8 @@ ok_loop:
         return false;
     }
 
-    bool find(const Tnode* p, unsigned int* d, const std::string& s, int offset, const int maxDistance) const
+    bool find(const Tnode* p, unsigned int* d, const std::string& s,
+        int offset, const int maxDistance, SearchData* searchData) const
     {
         for (; p != 0; p = p->eqkid, ++offset, d += s.size() + 1)
         {
@@ -421,7 +440,7 @@ ok_loop:
             if (p->minLength - int(s.length()) > maxDistance)
                 return false;
 
-            if (find(p->hikid, d, s, offset, maxDistance))
+            if (find(p->hikid, d, s, offset, maxDistance, searchData))
                 return true;
 
             if (0 == p->eqkid && !p->terminating)
@@ -434,10 +453,18 @@ ok_loop:
             if (!DoSearch(p, d, s, offset, expMaxDistance, distance))
                 return false;
 
+            if (searchData)
+                searchData->buffer[offset - 1] = p->splitchar;
+
             if (p->terminating)
             {
                 if (distance >= expMaxDistance)
-                    return true;
+                {
+                    if (searchData)
+                        searchData->words.emplace_back(searchData->buffer, searchData->buffer + offset);
+                    else
+                        return true;
+                }
             }
         }
         return false;
@@ -479,7 +506,7 @@ public:
 
 
         for (int result = 1; result < DISTANCE_THRESHOLD; ++result)
-            if (find(wordList, &d[0], s, 1, result))
+            if (find(wordList, &d[0], s, 1, result, nullptr))
             {
                 if (d != sbuf)
                     delete[] d;
@@ -487,11 +514,53 @@ public:
             }
 
         int result = std::max((unsigned int) wordList->minLength, (unsigned int) s.size());
-        GetDistance(wordList, &d[0], s, 1, result);
+        GetDistance(wordList, &d[0], s, 1, result, nullptr);
 
         if (d != sbuf)
             delete[] d;
         return result;
+    }
+
+    std::tuple<int, std::vector<std::string>> GetDistanceWords(const std::string& s) const
+    {
+        if (!wordList)
+            return { static_cast<int>(s.length()), {} };
+
+        if (s.empty())
+            return { wordList->minLength, {} }; // TODO return shortest words
+
+        if (find0(wordList, s.c_str()))
+            return { 0, { s } };
+
+        enum { FAST_BUFFER_SIZE = 512 };
+
+        unsigned int sbuf[FAST_BUFFER_SIZE];
+
+        const unsigned int wordDim = wordList->maxLength + 1;
+        const size_t bufSize = wordDim * (s.size() + 1);
+        unsigned int* d = (bufSize > FAST_BUFFER_SIZE) ? new unsigned int[bufSize] : sbuf;
+
+        for (unsigned int i = 0; i <= s.size(); ++i)
+            d[i] = ZERO_DISTANCE >> i;
+        for (unsigned int i = 1; i < wordDim; ++i)
+            d[i * (s.size() + 1)] = ZERO_DISTANCE >> i;
+
+        SearchData searchData;
+
+        for (int result = 1; result < DISTANCE_THRESHOLD; ++result)
+            if (find(wordList, &d[0], s, 1, result, &searchData), !searchData.words.empty())
+            {
+                if (d != sbuf)
+                    delete[] d;
+                return { result, std::move(searchData.words) };
+            }
+
+        int result = std::max((unsigned int)wordList->minLength, (unsigned int)s.size());
+        GetDistance(wordList, &d[0], s, 1, result, &searchData);
+
+        if (d != sbuf)
+            delete[] d;
+        return { result, std::move(searchData.words) };
     }
 };
 
