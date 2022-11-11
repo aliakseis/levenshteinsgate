@@ -1,13 +1,15 @@
 from levenshteinsgate import Trie
 from pathlib import Path
 import time
+import random
 
 twl06 = Path('twl06.txt').read_text().split()
 trie = Trie(twl06)
 
 david_22719 = Path('david_22719.in').read_text().split()
 
-david_22719.reverse()
+#david_22719.reverse()
+random.shuffle(david_22719)
 
 print('Starting...')
 start_time = time.time()

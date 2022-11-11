@@ -219,28 +219,34 @@ Tnode* insert(Tnode *p, const char *stream, int ch, unsigned int& length, FixedA
 {
     assert(ch & ~31);
 
-    if (p == 0) {
-        p = new(s_alloc) Tnode(ch);
+    if (p && ch < p->splitchar) // reverse order
+    {
+        p->hikid = insert(p->hikid, stream, ch, length, s_alloc);
     }
-
-    assert(ch >= p->splitchar);
-    if (ch == p->splitchar) {
-        ch = *stream++;
-        if (0 == ch)
-            p->terminating = true;
+    else
+    {
+        if (p == 0) {
+            p = new(s_alloc) Tnode(ch);
+        }
+        if (ch == p->splitchar) {
+            ch = *stream++;
+            if (0 == ch)
+                p->terminating = true;
+            else
+            {
+                ++length;
+                p->eqkid = insert(p->eqkid, stream, ch, length, s_alloc);
+            }
+        }
         else
         {
-            ++length;
-            p->eqkid = insert(p->eqkid, stream, ch, length, s_alloc);
+            Tnode* temp = insert_new(stream, ch, length, s_alloc);
+            assert(0 == temp->hikid);
+            temp->hikid = p;
+            temp->minLength = p->minLength;
+            temp->maxLength = p->maxLength;
+            p = temp;
         }
-    } else
-    {
-        Tnode* temp = insert_new(stream, ch, length, s_alloc);
-        assert(0 == temp->hikid);
-        temp->hikid = p;
-        temp->minLength = p->minLength;
-        temp->maxLength = p->maxLength;
-        p = temp;
     }
 
     if (p->maxLength < length)
