@@ -165,7 +165,6 @@ void FixedAlloc::Free(void* p)
     }
 }
 
-// http://www.drdobbs.com/184410528
 
 struct Tnode
 {
@@ -470,6 +469,25 @@ ok_loop:
         return false;
     }
 
+    void GetWords(const Tnode* p, int offset, const int length, SearchData& searchData) const
+    {
+        for (; p != 0; p = p->eqkid, ++offset)
+        {
+            if (p->minLength > length)
+                return;
+
+            if (offset > length)
+                return;
+
+            GetWords(p->hikid, offset, length, searchData);
+
+            searchData.buffer[offset - 1] = p->splitchar;
+
+            if (offset == length && p->terminating)
+                searchData.words.emplace_back(searchData.buffer, searchData.buffer + offset);
+        }
+    }
+
 public:
     void Insert(const char* s)
     {
@@ -527,7 +545,11 @@ public:
             return { static_cast<int>(s.length()), {} };
 
         if (s.empty())
-            return { wordList->minLength, {} }; // TODO return shortest words
+        {
+            SearchData searchData;
+            GetWords(wordList, 1, wordList->minLength, searchData);
+            return { wordList->minLength, std::move(searchData.words) };
+        }
 
         if (find0(wordList, s.c_str()))
             return { 0, { s } };

@@ -7,6 +7,8 @@ trie = Trie(twl06)
 
 david_22719 = Path('david_22719.in').read_text().split()
 
+david_22719.reverse()
+
 print('Starting...')
 start_time = time.time()
 
@@ -21,11 +23,18 @@ print("%s seconds" % (time.time() - start_time))
 start_time = time.time()
 
 sum = 0
+sumWords = 0
 for v in david_22719:
-    sum += trie.min_distance_words(v)[0]
+    r = trie.min_distance_words(v)
+    sum += r[0]
+    sumWords += len(r[1])
 
-print(sum)
+print(sum, sumWords)
 
 print("%s seconds" % (time.time() - start_time))
+
+print(trie.min_distance_words(''))
+
+print(trie.min_distance_words('o'))
 
 print(trie.min_distance_words('ertyuiopqzwaig'))
