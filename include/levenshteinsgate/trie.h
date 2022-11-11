@@ -172,14 +172,14 @@ struct Tnode
     /*bool*/ char terminating;
     unsigned char maxLength, minLength;
 
-    Tnode *eqkid, *hikid;
+    Tnode *eqkid, *sibling;
 
     Tnode(char ch)
         : splitchar(ch)
         , terminating(false)
         , maxLength(0)
         , minLength(255)
-        , eqkid(0), hikid(0)
+        , eqkid(0), sibling(0)
     {
     }
 
@@ -221,7 +221,7 @@ Tnode* insert(Tnode *p, const char *stream, int ch, unsigned int& length, FixedA
 
     if (p && ch < p->splitchar) // reverse order
     {
-        p->hikid = insert(p->hikid, stream, ch, length, s_alloc);
+        p->sibling = insert(p->sibling, stream, ch, length, s_alloc);
     }
     else
     {
@@ -241,8 +241,8 @@ Tnode* insert(Tnode *p, const char *stream, int ch, unsigned int& length, FixedA
         else
         {
             Tnode* temp = insert_new(stream, ch, length, s_alloc);
-            assert(0 == temp->hikid);
-            temp->hikid = p;
+            assert(0 == temp->sibling);
+            temp->sibling = p;
             temp->minLength = p->minLength;
             temp->maxLength = p->maxLength;
             p = temp;
@@ -372,7 +372,7 @@ ok_loop:
             if (p->minLength - int(s.length()) > maxDistance)
                 return false;
 
-            if (GetDistance(p->hikid, d, s, offset, maxDistance, searchData))
+            if (GetDistance(p->sibling, d, s, offset, maxDistance, searchData))
                 return true;
 
             if (0 == p->eqkid && !p->terminating)
@@ -413,11 +413,11 @@ ok_loop:
         {
             while (p->splitchar > *s)
             {
-                if (0 == p->hikid)
+                if (0 == p->sibling)
                 {
                     return false;
                 }
-                p = p->hikid;
+                p = p->sibling;
             }
 
             if (p->splitchar < *s)
@@ -445,7 +445,7 @@ ok_loop:
             if (p->minLength - int(s.length()) > maxDistance)
                 return false;
 
-            if (find(p->hikid, d, s, offset, maxDistance, searchData))
+            if (find(p->sibling, d, s, offset, maxDistance, searchData))
                 return true;
 
             if (0 == p->eqkid && !p->terminating)
@@ -485,7 +485,7 @@ ok_loop:
             if (offset > length)
                 return;
 
-            GetWords(p->hikid, offset, length, searchData);
+            GetWords(p->sibling, offset, length, searchData);
 
             searchData.buffer[offset - 1] = p->splitchar;
 
