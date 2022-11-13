@@ -4,7 +4,7 @@ Installation
 ------------
 
  - clone this repository
- - `pip install ./levenshteinsgate`
+ - `pip install --force-reinstall ./levenshteinsgate`
 
 Demo
 ----
@@ -15,11 +15,11 @@ import time
 import random
 
 twl06 = Path('twl06.txt').read_text().split()
+random.shuffle(twl06)
+
 trie = Trie(twl06)
 
 david_22719 = Path('david_22719.in').read_text().split()
-
-#david_22719.reverse()
 random.shuffle(david_22719)
 
 print('Starting...')
