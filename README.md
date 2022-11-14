@@ -52,3 +52,14 @@ print(trie.min_distance_words('o'))
 
 print(trie.min_distance_words('ertyuiopqzwaig'))
 ```
+Output:
+```
+Starting...                                                                                                                                                             
+22719                                                                                                                                                                   
+2.1426548957824707 seconds                                                                                                                                             
+22719 369596                                                                                                                                                           
+3.019028902053833 seconds                                                                                                                                               
+(2, ['aa', 'ab', 'ad', 'ae', 'ag', 'ah', 'ai', 'al', 'am', 'an', 'ar', 'as', 'at', 'aw', 'ax', 'ay', 'ba', 'be', 'bi', 'bo', 'by', 'de', 'do', 'ed', 'ef', 'eh', 'el', 'em', 'en', 'er', 'es', 'et', 'ex', 'fa', 'fe', 'go', 'ha', 'he', 'hi', 'hm', 'ho', 'id', 'if', 'in', 'is', 'it', 'jo', 'ka', 'ki', 'la', 'li', 'lo', 'ma', 'me', 'mi', 'mm', 'mo', 'mu', 'my', 'na', 'ne', 'no', 'nu', 'od', 'oe', 'of', 'oh', 'oi', 'om', 'on', 'op', 'or', 'os', 'ow', 'ox', 'oy', 'pa', 'pe', 'pi', 'qi', 're', 'sh', 'si', 'so', 'ta', 'ti', 'to', 'uh', 'um', 'un', 'up', 'us', 'ut', 'we', 'wo', 'xi', 'xu', 'ya', 'ye', 'yo', 'za'])                      
+(1, ['bo', 'do', 'go', 'ho', 'jo', 'lo', 'mo', 'no', 'od', 'oe', 'of', 'oh', 'oi', 'om', 'on', 'op', 'or', 'os', 'ow', 'ox', 'oy', 'so', 'to', 'wo', 'yo'])             
+(8, ['eriophyid', 'erysipelas', 'exteriorizing'])
+```
