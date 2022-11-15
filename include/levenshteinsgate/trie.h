@@ -165,16 +165,53 @@ void FixedAlloc::Free(void* p)
     }
 }
 
+inline char32_t Get(const char32_t*& s)
+{
+    return *s++;
+}
+
+inline char32_t Get(const char*& source)
+{
+    static const char trailingBytesForUTF8[256] = {
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, 3,3,3,3,3,3,3,3,4,4,4,4,5,5,5,5
+    };
+
+    static const char32_t offsetsFromUTF8[6] = { 0x00000000UL, 0x00003080UL, 0x000E2080UL,
+                 0x03C82080UL, 0xFA082080UL, 0x82082080UL };
+
+    char32_t ch = 0;
+    unsigned short extraBytesToRead = trailingBytesForUTF8[*source];
+
+    switch (extraBytesToRead) {
+    case 5: ch += *source++; ch <<= 6;
+    case 4: ch += *source++; ch <<= 6;
+    case 3: ch += *source++; ch <<= 6;
+    case 2: ch += *source++; ch <<= 6;
+    case 1: ch += *source++; ch <<= 6;
+    case 0: ch += *source++;
+    }
+    ch -= offsetsFromUTF8[extraBytesToRead];
+
+    return ch;
+}
+
 
 struct Tnode
 {
-    char splitchar;
+    Tnode *eqkid, *sibling;
+
+    char32_t splitchar;
     /*bool*/ char terminating;
     unsigned char maxLength, minLength;
 
-    Tnode *eqkid, *sibling;
-
-    Tnode(char ch)
+    Tnode(char32_t ch)
         : splitchar(ch)
         , terminating(false)
         , maxLength(0)
@@ -193,14 +230,14 @@ struct Tnode
     void operator delete(void* p, FixedAlloc& s_alloc) { s_alloc.Free(p); }
 };
 
-
-Tnode* insert_new(const char *stream, int ch, unsigned int& length, FixedAlloc& s_alloc)
+template<typename T>
+Tnode* insert_new(const T *stream, char32_t ch, unsigned int& length, FixedAlloc& s_alloc)
 {
     assert(ch & ~31);
 
     Tnode *p = new(s_alloc) Tnode(ch);
 
-    ch = *stream++;
+    ch = Get(stream);
     if (0 == ch)
         p->terminating = true;
     else
@@ -215,7 +252,8 @@ Tnode* insert_new(const char *stream, int ch, unsigned int& length, FixedAlloc& 
     return p;
 }
 
-Tnode* insert(Tnode *p, const char *stream, int ch, unsigned int& length, FixedAlloc& s_alloc)
+template<typename T>
+Tnode* insert(Tnode *p, const T *stream, char32_t ch, unsigned int& length, FixedAlloc& s_alloc)
 {
     assert(ch & ~31);
 
@@ -229,7 +267,7 @@ Tnode* insert(Tnode *p, const char *stream, int ch, unsigned int& length, FixedA
             p = new(s_alloc) Tnode(ch);
         }
         if (ch == p->splitchar) {
-            ch = *stream++;
+            ch = Get(stream);
             if (0 == ch)
                 p->terminating = true;
             else
@@ -269,8 +307,8 @@ private:
     enum { DISTANCE_THRESHOLD = 3 };
 
     struct SearchData {
-        std::vector<std::string> words;
-        char buffer[512];
+        std::vector<std::u32string> words;
+        char32_t buffer[512];
     };
 
     Tnode* wordList = nullptr;
@@ -278,7 +316,7 @@ private:
     FixedAlloc s_alloc{ sizeof(Tnode), 64 };
 
     __inline__
-    bool DoSearch(const Tnode* p, unsigned int* d, const std::string& s,
+    bool DoSearch(const Tnode* p, unsigned int* d, const std::u32string& s,
                   const int offset, const unsigned int maxDistance, unsigned int& distance) const
     {
         int threshold = int(s.size());
@@ -288,10 +326,10 @@ private:
         unsigned int* upLeft = d;
         unsigned int* downRight = upLeft + s.size() + 2;
 
-        const char* i = s.data();
-        const char* dataEnd = i + s.size();
+        const char32_t* i = s.data();
+        const char32_t* dataEnd = i + s.size();
 
-        const char splitchar = p->splitchar;
+        const char32_t splitchar = p->splitchar;
 
         const unsigned int startDistance = distance;
 
@@ -299,7 +337,7 @@ private:
 
         if (!ok)
         {
-            const char* pThreshold = i + threshold - 1;
+            const char32_t* pThreshold = i + threshold - 1;
 
             for (; i < pThreshold; ++i, ++upLeft, ++downRight)
             {
@@ -361,7 +399,7 @@ ok_loop:
     }
 
 
-    bool GetDistance(const Tnode* p, unsigned int* d, const std::string& s,
+    bool GetDistance(const Tnode* p, unsigned int* d, const std::u32string& s,
         int offset, int& maxDistance, SearchData* searchData) const
     {
         for (; p != 0; p = p->eqkid, ++offset, d += s.size() + 1)
@@ -407,7 +445,7 @@ ok_loop:
         return false;
     }
 
-    bool find0(const Tnode* p, const char* s) const
+    bool find0(const Tnode* p, const char32_t* s) const
     {
         for (; p != 0; p = p->eqkid)
         {
@@ -434,7 +472,7 @@ ok_loop:
         return false;
     }
 
-    bool find(const Tnode* p, unsigned int* d, const std::string& s,
+    bool find(const Tnode* p, unsigned int* d, const std::u32string& s,
         int offset, const int maxDistance, SearchData* searchData) const
     {
         for (; p != 0; p = p->eqkid, ++offset, d += s.size() + 1)
@@ -495,16 +533,17 @@ ok_loop:
     }
 
 public:
-    void Insert(const char* s)
+    template <typename T>
+    void Insert(const T* s)
     {
-        if (auto ch = *s++)
+        if (auto ch = Get(s))
         {
             unsigned int length(1);
             wordList = insert(wordList, s, ch, length, s_alloc);
         }
     }
 
-    int GetDistance(const std::string& s) const
+    int GetDistance(const std::u32string& s) const
     {
         if (!wordList)
             return s.length();
@@ -545,7 +584,7 @@ public:
         return result;
     }
 
-    std::tuple<int, std::vector<std::string>> GetDistanceWords(const std::string& s) const
+    std::tuple<int, std::vector<std::u32string>> GetDistanceWords(const std::u32string& s) const
     {
         if (!wordList)
             return { static_cast<int>(s.length()), {} };

@@ -14,15 +14,15 @@ public:
 
     inline explicit Trie(py::iterable words);
 
-    void insert(const std::string& word) {
+    void insert(const std::u32string& word) {
         trie_.Insert(word.c_str());
     }
 
-    int min_distance(const std::string& word) const {
+    int min_distance(const std::u32string& word) const {
         return trie_.GetDistance(word);
     }
 
-    std::tuple<int, std::vector<std::string>> min_distance_words(const std::string& word) const {
+    std::tuple<int, std::vector<std::u32string>> min_distance_words(const std::u32string& word) const {
         return trie_.GetDistanceWords(word);
     }
 
@@ -39,12 +39,11 @@ Trie::Trie(py::iterable words) {
                 throw std::runtime_error("failed to decode UTF-8");
             }
         }
-        char* buffer;
-        ssize_t length;
-        if (PYBIND11_BYTES_AS_STRING_AND_SIZE(word.ptr(), &buffer, &length) != 0) {
-            throw std::runtime_error("failed to extract bytes contents");
+        if (auto buffer = PYBIND11_BYTES_AS_STRING(word.ptr())) {
+            trie_.Insert(buffer);
         }
-        trie_.Insert(std::string(buffer, length).c_str());
+        else
+            throw std::runtime_error("failed to extract bytes contents");
     }
 }
 
