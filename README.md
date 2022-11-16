@@ -63,3 +63,31 @@ Starting...
 (1, ['bo', 'do', 'go', 'ho', 'jo', 'lo', 'mo', 'no', 'od', 'oe', 'of', 'oh', 'oi', 'om', 'on', 'op', 'or', 'os', 'ow', 'ox', 'oy', 'so', 'to', 'wo', 'yo'])             
 (8, ['eriophyid', 'erysipelas', 'exteriorizing'])
 ```
+Comparing with https://github.com/poke1024/simtrie
+
+```
+>>> from levenshteinsgate import Trie
+>>> from pathlib import Path
+>>> import random
+>>> twl06 = Path('twl06.txt').read_text().split()
+>>> random.shuffle(twl06)
+>>>
+>>> trie = Trie(twl06)
+>>> import timeit
+>>> def search1():
+...   return trie.min_distance_words('ertyuiopqzwaig')
+...
+>>> print(timeit.timeit(stmt=search1, number=1))
+0.01364929999999731
+>>> import simtrie
+>>> s = simtrie.Set(twl06)
+>>> def search2():
+...     return list(s.similar("ertyuiopqzwaig", 8))
+...
+>>> print(timeit.timeit(stmt=search2, number=1))
+0.019658799999888288
+>>> print(search1())
+(8, ['eriophyid', 'erysipelas', 'exteriorizing'])
+>>> print(search2())
+[('eriophyid', 8.0), ('erysipelas', 8.0), ('exteriorizing', 8.0)]
+```
