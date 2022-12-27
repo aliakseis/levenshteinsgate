@@ -546,7 +546,7 @@ public:
     int GetDistance(const std::u32string& s) const
     {
         if (!wordList)
-            return s.length();
+            return static_cast<int>(s.length());
 
         if (s.empty())
             return wordList->minLength;
