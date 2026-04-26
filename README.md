@@ -1,5 +1,7 @@
 # levenshteinsgate
 
+<img width="1536" height="1024" alt="Image" src="https://github.com/user-attachments/assets/e95b53f1-ec72-4a3a-b466-ef2265624846" />
+
 Installation
 ------------
 
